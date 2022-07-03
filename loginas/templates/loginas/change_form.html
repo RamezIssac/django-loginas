@@ -2,22 +2,23 @@
 {% load i18n %}
 
 {% block object-tools-items %}
-    {{ block.super }}
-    <li><a id="loginas-link" href="#"><i class="icon-user icon-alpha75"></i>{% trans "Log in as user" %}</a></li>
+  {{ block.super }}
+  <li><a id="loginas-link" href="#"><i class="icon-user icon-alpha75"></i>{% trans "Log in as user" %}</a></li>
 
 {% endblock %}
 
 {% block footer %}
-{{ block.super }}
-    <form method="post" id="loginas-form" action="{% url 'loginas-user-login' object_id %}" style="display: none">
-        {% csrf_token %}
-    </form>
-    <script>
-	django.jQuery(function() {
-          django.jQuery('#loginas-link').click(function() {
-            django.jQuery('#loginas-form').submit();
-            return false;
-          });
-        });
-    </script>
+  {{ block.super }}
+  <form method="post" id="loginas-form" action="{% url 'loginas-user' %}" style="display: none">
+    {% csrf_token %}
+    <input type="hidden" value="{{ object_id }}" name="user">
+  </form>
+  <script>
+    django.jQuery(function () {
+      django.jQuery('#loginas-link').click(function () {
+        django.jQuery('#loginas-form').submit();
+        return false;
+      });
+    });
+  </script>
 {% endblock %}

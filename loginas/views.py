@@ -1,7 +1,9 @@
+from django import forms
 from django.contrib import messages
 from django.contrib.admin.utils import unquote
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import PermissionDenied
+from django.http import HttpResponseNotFound
 from django.shortcuts import redirect
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_protect
@@ -16,7 +18,6 @@ try:
 except ImportError:
     from django.utils.importlib import import_module  # type: ignore
 
-
 try:
     from django.contrib.auth import get_user_model
 
@@ -29,7 +30,7 @@ def _load_module(path):
     """Code to load create user module. Copied off django-browserid."""
 
     i = path.rfind(".")
-    module, attr = path[:i], path[i + 1 :]
+    module, attr = path[:i], path[i + 1:]
 
     try:
         mod = import_module(module)
@@ -55,6 +56,56 @@ def _load_module(path):
 @require_POST
 def user_login(request, user_id):
     user = User.objects.get(pk=unquote(user_id))
+
+    if isinstance(la_settings.CAN_LOGIN_AS, str):
+        can_login_as = _load_module(la_settings.CAN_LOGIN_AS)
+    elif hasattr(la_settings.CAN_LOGIN_AS, "__call__"):
+        can_login_as = la_settings.CAN_LOGIN_AS
+    else:
+        raise ImproperlyConfigured(
+            "The CAN_LOGIN_AS setting is neither a valid module nor callable."
+        )
+    no_permission_error = None
+    try:
+        if not can_login_as(request, user):
+            no_permission_error = _("You do not have permission to do that.")
+    except PermissionDenied as e:
+        no_permission_error = str(e)
+    if no_permission_error is not None:
+        messages.error(
+            request,
+            no_permission_error,
+            extra_tags=la_settings.MESSAGE_EXTRA_TAGS,
+            fail_silently=True,
+        )
+        return redirect(request.META.get("HTTP_REFERER", "/"))
+
+    try:
+        login_as(user, request)
+    except ImproperlyConfigured as e:
+        messages.error(
+            request,
+            str(e),
+            extra_tags=la_settings.MESSAGE_EXTRA_TAGS,
+            fail_silently=True,
+        )
+        return redirect(request.META.get("HTTP_REFERER", "/"))
+
+    return redirect(la_settings.LOGIN_REDIRECT)
+
+
+class UserForm(forms.Form):
+    user = forms.ModelChoiceField(User.objects.all())
+
+
+@csrf_protect
+@require_POST
+def user_login2(request):
+    form = UserForm(request.POST)
+    if not form.is_valid():
+        return HttpResponseNotFound()
+
+    user = form.cleaned_data['user']
 
     if isinstance(la_settings.CAN_LOGIN_AS, str):
         can_login_as = _load_module(la_settings.CAN_LOGIN_AS)
