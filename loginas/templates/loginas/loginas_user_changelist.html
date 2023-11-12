@@ -1,0 +1,22 @@
+{% extends 'admin/change_list.html' %}
+
+
+{% block content %}
+    {{ block.super }}
+    <form method="post" id="loginas-form" action="{% url 'loginas-user' %}" style="display: none">
+        {% csrf_token %}
+        <input type="hidden" name="user" value="" id="loginas_form_user">
+    </form>
+
+    <script>
+        django.jQuery(function () {
+            django.jQuery('.loginAsBtn').click(function () {
+                let $this = django.jQuery(this)
+                django.jQuery('#loginas_form_user').val($this.attr('data-pk'))
+                django.jQuery('#loginas-form').submit();
+                return false;
+            });
+        });
+
+    </script>
+{% endblock %}
